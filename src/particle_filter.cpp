@@ -70,7 +70,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   //   observed measurement to this particular landmark.
   for (unsigned int i = 0; i < observations.size(); ++i)
   {
-    double min_dist = 1000;
+    double min_dist = 50; // sensor range
     int min_id;
     for (unsigned int j = 0; j < predicted.size(); ++j)
     {
@@ -88,8 +88,6 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                                    const std::vector<LandmarkObs> &observations, const Map &map_landmarks)
 {
-  // TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
-  //   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
   // NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
   //   according to the MAP'S coordinate system. You will need to transform between the two systems.
   //   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
@@ -104,12 +102,27 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   // The real landmark positions are given in the MAP coordinate frame
   // To calculate distances between the measurement of the landmarks and the landmarks themselves, the measurements
   // need to be converted from the CAR coordinates to MAP coordinates.
-  
-  x_m = particles.x + cos(particles.theta);
+
+
+  for (auto p : particles)
+  {
+
+    // TODO: list of transformed observations into map frame
+    for (auto o : observations)
+    {
+      p.x + o.x * cos(p.theta) - o.y * sin(p.theta);
+      p.y + o.x * sin(p.theta) + o.y * cos(p.theta);
+    }
+    
+    // TODO: pick landmarks within sensor range of the particle
+    vector<LandmarkObs> predicted; 
+  }
   
   // particle parametrizes the transformation
   // TODO: for each particle, I need to transform each observation into it's frame
   // that may be what the Particle::sense_x and Particle::sense_y fields are for.
+
+  
 
   // DATA ASSOCIATION using NEAREST NEIGHBOR
   // This is important step for data association, where for each landmark measurement we need to determine 
