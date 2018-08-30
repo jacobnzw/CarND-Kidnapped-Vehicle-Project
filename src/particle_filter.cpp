@@ -89,13 +89,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                                    const std::vector<LandmarkObs> &observations, const Map &map_landmarks)
 {
   // NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-  //   according to the MAP'S coordinate system. You will need to transform between the two systems.
-  //   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
-  //   The following is a good resource for the theory:
-  //   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-  //   and the following is a good resource for the actual equation to implement (look at equation
-  //   3.33
-  //   http://planning.cs.uiuc.edu/node99.html
+  //   according to the MAP'S coordinate system. 
 
   // TRANSFORMATION of LIDAR MEASUREMENTS to MAP coordinates
   // Car measures the landmark positions using LIDAR sensor, the landmark measurements are in CAR coordinate frame
@@ -107,32 +101,51 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   for (auto p : particles)
   {
 
-    // TODO: list of transformed observations into map frame
+    // list of landmark observations transformed into the MAP frame
+    vector<LandmarkObs> observations_transformed;
     for (auto o : observations)
     {
-      p.x + o.x * cos(p.theta) - o.y * sin(p.theta);
-      p.y + o.x * sin(p.theta) + o.y * cos(p.theta);
+      double tx = p.x + o.x * cos(p.theta) - o.y * sin(p.theta);
+      double ty = p.y + o.x * sin(p.theta) + o.y * cos(p.theta);
+      observations_transformed.push_back(LandmarkObs{o.id, tx, ty});
     }
     
-    // TODO: pick landmarks within sensor range of the particle
-    vector<LandmarkObs> predicted; 
+    // pick landmarks within sensor range of the particle
+    vector<LandmarkObs> landmarks_within_range;
+    for (auto lm : map_landmarks.landmark_list)
+    {
+      if (dist(lm.x_f, lm.y_f, p.x, p.y) <= sensor_range)
+        landmarks_within_range.push_back(LandmarkObs{lm.id_i, lm.x_f, lm.y_f});
+    }
+
+    // DATA ASSOCIATION using NEAREST NEIGHBOR
+    // This is important step for data association, where for each landmark measurement we need to determine 
+    // the landmark in the map to which this measurement belongs to. 
+    // That is, I obtain some numbers and ask myself: "did I just measure position of the tree or the corner 
+    // of that building?" This is what data association solves. To each measurement it assigns a landmark from the map.
+    dataAssociation(landmarks_within_range, observations_transformed);
+
+    // Once each measurement has a landmark associated with it, we can compute 
+    // the likelihood of the particle given the landmark observations.
+    double particle_likelihood = 1.0;
+    for (auto ot : observations_transformed)
+    { 
+      double std_x = std_landmark[0];
+      double std_y = std_landmark[1];
+
+      // get the closest landmark according to associated id
+      LandmarkObs closest_landmark;
+      for (auto lm : landmarks_within_range)
+        if (ot.id == lm.id)
+          closest_landmark = lm;
+
+      particle_likelihood *= 1/(2*M_PI*std_x*std_y) * exp(-0.5*( pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) + 
+                                                                 pow(ot.y - closest_landmark.y, 2)/pow(std_y, 2) ));
+    }
+    p.weight = particle_likelihood;
   }
   
-  // particle parametrizes the transformation
-  // TODO: for each particle, I need to transform each observation into it's frame
-  // that may be what the Particle::sense_x and Particle::sense_y fields are for.
-
   
-
-  // DATA ASSOCIATION using NEAREST NEIGHBOR
-  // This is important step for data association, where for each landmark measurement we need to determine 
-  // the landmark in the map to which this measurement belongs to. 
-  // That is, I obtain some numbers and ask myself: "did I just measure position of the tree or the corner 
-  // of that building?" This is what data association solves. To each measurement it assigns a landmark from the map.
-  dataAssociation(predicted, observations);
-
-  // Once each measurement has a landmark associated with it, we can compute 
-  // the likelihood of the particle given the landmark observations.
 }
 
 void ParticleFilter::resample()
