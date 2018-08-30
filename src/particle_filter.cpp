@@ -58,9 +58,17 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   for (auto p : particles)
   {
     // TODO: zero yaw_rate case
-    p.x = p.x + (velocity / yaw_rate) * (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) + dist_x(gen);
-    p.y = p.y + (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) + dist_y(gen);
-    p.theta = p.theta + yaw_rate * delta_t + dist_theta(gen);
+    if (yaw_rate == 0)
+    {
+      p.x += velocity * delta_t * cos(p.theta) + dist_x(gen);
+      p.y += velocity * delta_t * sin(p.theta) + dist_y(gen);
+    }
+    else
+    {
+      p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) + dist_x(gen);
+      p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) + dist_y(gen);
+      p.theta += yaw_rate * delta_t + dist_theta(gen);
+    }
   }
 }
 
@@ -70,7 +78,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   //   observed measurement to this particular landmark.
   for (unsigned int i = 0; i < observations.size(); ++i)
   {
-    double min_dist = 50; // sensor range
+    double min_dist = 1000; // sensor range
     int min_id;
     for (unsigned int j = 0; j < predicted.size(); ++j)
     {
@@ -91,15 +99,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   // NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
   //   according to the MAP'S coordinate system. 
 
-  // TRANSFORMATION of LIDAR MEASUREMENTS to MAP coordinates
-  // Car measures the landmark positions using LIDAR sensor, the landmark measurements are in CAR coordinate frame
-  // The real landmark positions are given in the MAP coordinate frame
-  // To calculate distances between the measurement of the landmarks and the landmarks themselves, the measurements
-  // need to be converted from the CAR coordinates to MAP coordinates.
-
-
   for (auto p : particles)
   {
+    // TRANSFORMATION of LIDAR MEASUREMENTS to MAP coordinates
+    // Car measures the landmark positions using LIDAR sensor, the landmark measurements are in CAR coordinate frame
+    // The real landmark positions are given in the MAP coordinate frame
+    // To calculate distances between the measurement of the landmarks and the landmarks themselves, the measurements
+    // need to be converted from the CAR coordinates to MAP coordinates.
 
     // list of landmark observations transformed into the MAP frame
     vector<LandmarkObs> observations_transformed;
@@ -128,23 +134,23 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // Once each measurement has a landmark associated with it, we can compute 
     // the likelihood of the particle given the landmark observations.
     double particle_likelihood = 1.0;
+    double std_x = std_landmark[0];
+    double std_y = std_landmark[1];
+    double Z = 1/(2*M_PI*std_x*std_y);
     for (auto ot : observations_transformed)
     { 
-      double std_x = std_landmark[0];
-      double std_y = std_landmark[1];
-
       // get the closest landmark according to associated id
       LandmarkObs closest_landmark;
       for (auto lm : landmarks_within_range)
         if (ot.id == lm.id)
           closest_landmark = lm;
 
-      particle_likelihood *= 1/(2*M_PI*std_x*std_y) * exp(-0.5*( pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) + 
-                                                                 pow(ot.y - closest_landmark.y, 2)/pow(std_y, 2) ));
+      cout << pow(ot.x - closest_landmark.x, 2) << " " << pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) << endl;
+      particle_likelihood *= Z * exp(-0.5*( pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) + 
+                                            pow(ot.y - closest_landmark.y, 2)/pow(std_y, 2) ));
     }
     p.weight = particle_likelihood;
   }
-  
   
 }
 
