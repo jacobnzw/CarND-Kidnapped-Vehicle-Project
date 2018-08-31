@@ -11,6 +11,7 @@
 #include <numeric>
 #include <math.h>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <iterator>
@@ -45,10 +46,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[])
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate)
 {
   // TODO: Add measurements to each particle and add random Gaussian noise.
-  // NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
-  //  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-  //  http://www.cplusplus.com/reference/random/default_random_engine/
-
+  // NOTE: prediction step doesn't process any measurements. Get your shit together Udacity!!!
   default_random_engine gen;
   normal_distribution<double> dist_x(0.0, std_pos[0]);
   normal_distribution<double> dist_y(0.0, std_pos[1]);
@@ -57,11 +55,11 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   // push particles through the CTRV model
   for (auto p : particles)
   {
-    // TODO: zero yaw_rate case
     if (yaw_rate == 0)
     {
       p.x += velocity * delta_t * cos(p.theta) + dist_x(gen);
       p.y += velocity * delta_t * sin(p.theta) + dist_y(gen);
+      p.theta += dist_theta(gen);
     }
     else
     {
@@ -72,23 +70,24 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   }
 }
 
-void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs> &observations)
+void ParticleFilter::dataAssociation(std::vector<LandmarkObs> landmarks, std::vector<LandmarkObs> &observations)
 {
   // TODO: Find the predicted measurement that is closest to each observed measurement and assign the
   //   observed measurement to this particular landmark.
   for (unsigned int i = 0; i < observations.size(); ++i)
   {
     double min_dist = 1000; // sensor range
-    int min_id;
-    for (unsigned int j = 0; j < predicted.size(); ++j)
+    int min_id = -1;
+    for (unsigned int j = 0; j < landmarks.size(); ++j)
     {
-      double d = dist(predicted[i].x, predicted[i].y, observations[i].x, observations[i].y);
+      double d = dist(landmarks[j].x, landmarks[j].y, observations[i].x, observations[i].y);
       if (d < min_dist)
       {
         min_dist = d;
-        min_id = predicted[i].id;
+        min_id = landmarks[j].id;
       }
     }
+    // cout << "min_id = " << min_id << " d = " << min_dist << endl;
     observations[i].id = min_id;
   }
 }
@@ -145,13 +144,19 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         if (ot.id == lm.id)
           closest_landmark = lm;
 
-      cout << pow(ot.x - closest_landmark.x, 2) << " " << pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) << endl;
       particle_likelihood *= Z * exp(-0.5*( pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) + 
                                             pow(ot.y - closest_landmark.y, 2)/pow(std_y, 2) ));
+      // cout << "mu = [" << setprecision(2) << closest_landmark.x << ", " << setprecision(2) << closest_landmark.y << "]" 
+      //      << "\tx = [" << setprecision(2) << ot.x << ", " << setprecision(2) << ot.y << "]" 
+      //      << "\tlik = " << setprecision(4) << particle_likelihood << endl;
     }
     p.weight = particle_likelihood;
   }
   
+  for (unsigned int i = 0; i < particles.size(); ++i)
+  {
+    weights[i] = particles[i].weight;
+  }
 }
 
 void ParticleFilter::resample()
