@@ -36,9 +36,6 @@ int main()
   double sigma_pos [3] = {0.3, 0.3, 0.01}; // GPS measurement uncertainty [x [m], y [m], theta [rad]]
   double sigma_landmark [2] = {0.3, 0.3}; // Landmark measurement uncertainty [x [m], y [m]]
 
-  static unsigned int time_step = 0;
-  const bool DEBUG = false;
-
   // Read map data
   Map map;
   if (!read_map_data("../data/map_data.txt", map)) {
@@ -150,9 +147,6 @@ int main()
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
-          cout << "time step: " << ++time_step << endl;
-          if (DEBUG)
-            cin.ignore();
         }
       }
       else

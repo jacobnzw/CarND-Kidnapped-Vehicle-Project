@@ -36,17 +36,13 @@ void ParticleFilter::init(double x, double y, double theta, double std[])
   normal_distribution<double> dist_y(y, std[1]);
   normal_distribution<double> dist_theta(theta, std[2]);
   for (unsigned int i = 0; i < num_particles; ++i)
-  {
-    Particle p = {i, dist_x(gen), dist_y(gen), dist_theta(gen), weight_init};
-    particles.push_back(p);
-  }
+    particles.push_back(Particle{i, dist_x(gen), dist_y(gen), dist_theta(gen), weight_init});
   is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate)
 {
-  // TODO: Add measurements to each particle and add random Gaussian noise.
-  // NOTE: prediction step doesn't process any measurements. Get your shit together Udacity!!!
+  // sample from the CTRV transition PDF p(x_k | x^i_{k-1})
   default_random_engine gen;
   normal_distribution<double> dist_x(0.0, std_pos[0]);
   normal_distribution<double> dist_y(0.0, std_pos[1]);
@@ -72,11 +68,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> landmarks, std::vector<LandmarkObs> &observations)
 {
-  // TODO: Find the predicted measurement that is closest to each observed measurement and assign the
-  //   observed measurement to this particular landmark.
+  // DATA ASSOCIATION using NEAREST NEIGHBOR
+  // For each landmark measurement we need to determine the landmark in the map to which this measurement 
+  // belongs to (i.e. from which landmark the measurement originated from).
   for (auto& obs : observations)
   {
-    double min_dist = 1000; // sensor range
+    double min_dist = numeric_limits<double>::max(); // sensor range
     for (auto lm : landmarks)
     {
       double d = dist(lm.x, lm.y, obs.x, obs.y);
@@ -86,7 +83,6 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> landmarks, std::ve
         obs.id = lm.id;
       }
     }
-    // cout << "min_id = " << min_id << " d = " << min_dist << endl;
   }
 }
 
@@ -102,34 +98,20 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // need to be converted from the CAR coordinates to MAP coordinates.
 
     // list of landmark observations transformed into the MAP frame
-    // cout << "TOBS: ";
     vector<LandmarkObs> observations_transformed;
     for (auto o : observations)
     {
       double tx = p.x + o.x * cos(p.theta) - o.y * sin(p.theta);
       double ty = p.y + o.x * sin(p.theta) + o.y * cos(p.theta);
       observations_transformed.push_back(LandmarkObs{o.id, tx, ty});
-      // cout << "[" << tx << ", " << ty << "]; ";
     }
-    // cout << endl;
     
     // pick landmarks within sensor range of the particle
     vector<LandmarkObs> landmarks_within_range;
     for (auto lm : map_landmarks.landmark_list)
-    {
       if (dist(lm.x_f, lm.y_f, p.x, p.y) <= sensor_range)
         landmarks_within_range.push_back(LandmarkObs{lm.id_i, lm.x_f, lm.y_f});
-    }
-    // cout << "LM IDs in range: ";
-    // for (auto pred : landmarks_within_range)
-    //   cout << pred.id << " ";
-    // cout << endl;
 
-    // DATA ASSOCIATION using NEAREST NEIGHBOR
-    // This is important step for data association, where for each landmark measurement we need to determine 
-    // the landmark in the map to which this measurement belongs to. 
-    // That is, I obtain some numbers and ask myself: "did I just measure position of the tree or the corner 
-    // of that building?" This is what data association solves. To each measurement it assigns a landmark from the map.
     dataAssociation(landmarks_within_range, observations_transformed);
 
     // Once each measurement has a landmark associated with it, we can compute 
@@ -138,7 +120,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double std_x = std_landmark[0];
     double std_y = std_landmark[1];
     double Z = 1/(2*M_PI*std_x*std_y);
-    // cout << "CLM IDs: ";
     for (auto ot : observations_transformed)
     { 
       // get the closest associated landmark
@@ -149,20 +130,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
       particle_likelihood *= Z * exp(-0.5*( pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) + 
                                             pow(ot.y - closest_landmark.y, 2)/pow(std_y, 2) ));
-      
-      // cout << "mu = [" << setprecision(2) << closest_landmark.x << ", " << setprecision(2) << closest_landmark.y << "]" 
-      //      << "\tx = [" << setprecision(2) << ot.x << ", " << setprecision(2) << ot.y << "]" 
-      //      << "\tlik = " << setprecision(4) << particle_likelihood << endl;
-      // cout << closest_landmark.id << " ";
     }
-    // cout << endl;
     p.weight = particle_likelihood;
   }
   
   for (unsigned int i = 0; i < particles.size(); ++i)
-  {
     weights[i] = particles[i].weight;
-  }
 }
 
 void ParticleFilter::resample()
@@ -173,9 +146,7 @@ void ParticleFilter::resample()
 
   vector<Particle> particles_new;
   for (unsigned int i = 0; i < num_particles; ++i)
-  {
     particles_new.push_back(particles[dist_particle(gen)]);
-  }
   particles = particles_new;
   // fill(weights.begin(), weights.end(), 1.0);
 }
