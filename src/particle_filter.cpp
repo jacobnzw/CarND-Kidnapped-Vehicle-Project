@@ -98,7 +98,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   // NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
   //   according to the MAP'S coordinate system. 
 
-  for (auto p : particles)
+  for (auto& p : particles)  // Why not auto p? Because we need to change p. See: https://bit.ly/2oqJjQU
   {
     // TRANSFORMATION of LIDAR MEASUREMENTS to MAP coordinates
     // Car measures the landmark positions using LIDAR sensor, the landmark measurements are in CAR coordinate frame
@@ -138,7 +138,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double Z = 1/(2*M_PI*std_x*std_y);
     for (auto ot : observations_transformed)
     { 
-      // get the closest landmark according to associated id
+      // get the closest associated landmark
       LandmarkObs closest_landmark;
       for (auto lm : landmarks_within_range)
         if (ot.id == lm.id)
@@ -146,6 +146,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
       particle_likelihood *= Z * exp(-0.5*( pow(ot.x - closest_landmark.x, 2)/pow(std_x, 2) + 
                                             pow(ot.y - closest_landmark.y, 2)/pow(std_y, 2) ));
+      
       // cout << "mu = [" << setprecision(2) << closest_landmark.x << ", " << setprecision(2) << closest_landmark.y << "]" 
       //      << "\tx = [" << setprecision(2) << ot.x << ", " << setprecision(2) << ot.y << "]" 
       //      << "\tlik = " << setprecision(4) << particle_likelihood << endl;
@@ -156,6 +157,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   for (unsigned int i = 0; i < particles.size(); ++i)
   {
     weights[i] = particles[i].weight;
+    // cout << "p_weight: " << particles[i].weight << endl;
   }
 }
 
@@ -171,6 +173,7 @@ void ParticleFilter::resample()
     particles_new.push_back(particles[dist_particle(gen)]);
   }
   particles = particles_new;
+  // fill(weights.begin(), weights.end(), 1.0);
 }
 
 Particle ParticleFilter::SetAssociations(Particle &particle, const std::vector<int> &associations,

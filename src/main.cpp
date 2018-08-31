@@ -36,6 +36,9 @@ int main()
   double sigma_pos [3] = {0.3, 0.3, 0.01}; // GPS measurement uncertainty [x [m], y [m], theta [rad]]
   double sigma_landmark [2] = {0.3, 0.3}; // Landmark measurement uncertainty [x [m], y [m]]
 
+  static unsigned int time_step = 0;
+  const bool DEBUG = true;
+
   // Read map data
   Map map;
   if (!read_map_data("../data/map_data.txt", map)) {
@@ -103,7 +106,7 @@ int main()
                     std::istream_iterator<float>(),
                     std::back_inserter(y_sense));
 
-          for (int i = 0; i < x_sense.size(); i++)
+          for (unsigned int i = 0; i < x_sense.size(); i++)
           {
             LandmarkObs obs;
             obs.x = x_sense[i];
@@ -117,11 +120,11 @@ int main()
 
           // Calculate and output the average weighted error of the particle filter over all time steps so far.
           vector<Particle> particles = pf.particles;
-          int num_particles = particles.size();
+          unsigned int num_particles = particles.size();
           double highest_weight = -1.0;
           Particle best_particle;
           double weight_sum = 0.0;
-          for (int i = 0; i < num_particles; ++i)
+          for (unsigned int i = 0; i < num_particles; ++i)
           {
             if (particles[i].weight > highest_weight)
             {
@@ -146,6 +149,10 @@ int main()
           auto msg = "42[\"best_particle\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
+          cout << "time step: " << ++time_step << endl;
+          if (DEBUG)
+            cin.ignore();
         }
       }
       else
