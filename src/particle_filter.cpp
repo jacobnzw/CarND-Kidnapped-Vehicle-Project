@@ -53,7 +53,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   normal_distribution<double> dist_theta(0.0, std_pos[2]);
 
   // push particles through the CTRV model
-  for (auto p : particles)
+  for (auto& p : particles)
   {
     if (yaw_rate == 0)
     {
@@ -74,30 +74,25 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> landmarks, std::ve
 {
   // TODO: Find the predicted measurement that is closest to each observed measurement and assign the
   //   observed measurement to this particular landmark.
-  for (unsigned int i = 0; i < observations.size(); ++i)
+  for (auto& obs : observations)
   {
     double min_dist = 1000; // sensor range
-    int min_id = -1;
-    for (unsigned int j = 0; j < landmarks.size(); ++j)
+    for (auto lm : landmarks)
     {
-      double d = dist(landmarks[j].x, landmarks[j].y, observations[i].x, observations[i].y);
+      double d = dist(lm.x, lm.y, obs.x, obs.y);
       if (d < min_dist)
       {
         min_dist = d;
-        min_id = landmarks[j].id;
+        obs.id = lm.id;
       }
     }
     // cout << "min_id = " << min_id << " d = " << min_dist << endl;
-    observations[i].id = min_id;
   }
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                                    const std::vector<LandmarkObs> &observations, const Map &map_landmarks)
 {
-  // NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-  //   according to the MAP'S coordinate system. 
-
   for (auto& p : particles)  // Why not auto p? Because we need to change p. See: https://bit.ly/2oqJjQU
   {
     // TRANSFORMATION of LIDAR MEASUREMENTS to MAP coordinates
@@ -107,13 +102,16 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     // need to be converted from the CAR coordinates to MAP coordinates.
 
     // list of landmark observations transformed into the MAP frame
+    // cout << "TOBS: ";
     vector<LandmarkObs> observations_transformed;
     for (auto o : observations)
     {
       double tx = p.x + o.x * cos(p.theta) - o.y * sin(p.theta);
       double ty = p.y + o.x * sin(p.theta) + o.y * cos(p.theta);
       observations_transformed.push_back(LandmarkObs{o.id, tx, ty});
+      // cout << "[" << tx << ", " << ty << "]; ";
     }
+    // cout << endl;
     
     // pick landmarks within sensor range of the particle
     vector<LandmarkObs> landmarks_within_range;
@@ -122,6 +120,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       if (dist(lm.x_f, lm.y_f, p.x, p.y) <= sensor_range)
         landmarks_within_range.push_back(LandmarkObs{lm.id_i, lm.x_f, lm.y_f});
     }
+    // cout << "LM IDs in range: ";
+    // for (auto pred : landmarks_within_range)
+    //   cout << pred.id << " ";
+    // cout << endl;
 
     // DATA ASSOCIATION using NEAREST NEIGHBOR
     // This is important step for data association, where for each landmark measurement we need to determine 
@@ -136,6 +138,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double std_x = std_landmark[0];
     double std_y = std_landmark[1];
     double Z = 1/(2*M_PI*std_x*std_y);
+    // cout << "CLM IDs: ";
     for (auto ot : observations_transformed)
     { 
       // get the closest associated landmark
@@ -150,14 +153,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // cout << "mu = [" << setprecision(2) << closest_landmark.x << ", " << setprecision(2) << closest_landmark.y << "]" 
       //      << "\tx = [" << setprecision(2) << ot.x << ", " << setprecision(2) << ot.y << "]" 
       //      << "\tlik = " << setprecision(4) << particle_likelihood << endl;
+      // cout << closest_landmark.id << " ";
     }
+    // cout << endl;
     p.weight = particle_likelihood;
   }
   
   for (unsigned int i = 0; i < particles.size(); ++i)
   {
     weights[i] = particles[i].weight;
-    // cout << "p_weight: " << particles[i].weight << endl;
   }
 }
 

@@ -37,7 +37,7 @@ int main()
   double sigma_landmark [2] = {0.3, 0.3}; // Landmark measurement uncertainty [x [m], y [m]]
 
   static unsigned int time_step = 0;
-  const bool DEBUG = true;
+  const bool DEBUG = false;
 
   // Read map data
   Map map;
